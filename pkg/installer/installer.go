@@ -21,6 +21,7 @@ import (
 
 	kubeoneapi "github.com/kubermatic/kubeone/pkg/apis/kubeone"
 	"github.com/kubermatic/kubeone/pkg/configupload"
+	"github.com/kubermatic/kubeone/pkg/credentials"
 	"github.com/kubermatic/kubeone/pkg/installer/installation"
 	"github.com/kubermatic/kubeone/pkg/ssh"
 	"github.com/kubermatic/kubeone/pkg/state"
@@ -29,6 +30,7 @@ import (
 // Options groups the various possible options for running
 // the Kubernetes installation.
 type Options struct {
+	CredentialsOptions *credentials.Options
 	Verbose        bool
 	BackupFile     string
 	DestroyWorkers bool
@@ -77,5 +79,6 @@ func (i *Installer) createState(options *Options) *state.State {
 		BackupFile:     options.BackupFile,
 		DestroyWorkers: options.DestroyWorkers,
 		RemoveBinaries: options.RemoveBinaries,
+		FetchCredentials: credentials.FetcherForProvider(i.cluster.CloudProvider.Name, *options.CredentialsOptions).Fetch,
 	}
 }

@@ -48,6 +48,7 @@ type State struct {
 	ForceUpgrade              bool
 	UpgradeMachineDeployments bool
 	PatchCNI                  bool
+	FetchCredentials func() (map[string]string, error)
 }
 
 // Clone returns a shallow copy of the State.

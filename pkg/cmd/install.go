@@ -27,18 +27,22 @@ import (
 	"github.com/spf13/pflag"
 
 	kubeoneapi "github.com/kubermatic/kubeone/pkg/apis/kubeone"
+	"github.com/kubermatic/kubeone/pkg/credentials"
 	"github.com/kubermatic/kubeone/pkg/installer"
 )
 
 type installOptions struct {
 	globalOptions
+	CredentialsOptions *credentials.Options
 	Manifest   string
 	BackupFile string
 }
 
 // installCmd setups install command
 func installCmd(rootFlags *pflag.FlagSet) *cobra.Command {
-	iopts := &installOptions{}
+	iopts := &installOptions{
+		CredentialsOptions: &credentials.Options{},
+	}
 	cmd := &cobra.Command{
 		Use:   "install <manifest>",
 		Short: "Install Kubernetes",
@@ -70,6 +74,9 @@ It's possible to source information about hosts from Terraform output, using the
 	}
 
 	cmd.Flags().StringVarP(&iopts.BackupFile, "backup", "b", "", "path to where the PKI backup .tar.gz file should be placed (default: location of cluster config file)")
+
+	cmd.Flags().StringVarP(&iopts.CredentialsOptions.AWSProfilePath, "aws-profile-path", "", "~/.aws/credentials", "path to the file where aws credentials are located")
+	cmd.Flags().StringVarP(&iopts.CredentialsOptions.AWSProfileName, "aws-profile-name", "", "default", "name of the aws profile to be deployed on the cluster for machine-controller")
 
 	return cmd
 }
