@@ -44,7 +44,7 @@ func Ensure(s *state.State) error {
 
 	s.Logger.Infoln("Creating credentials secret…")
 
-	creds, err := ProviderCredentials(s.Cluster.CloudProvider.Name)
+	creds, err := FetcherForProvider(s.Cluster.CloudProvider.Name, Options{}).Fetch()
 	if err != nil {
 		return errors.Wrap(err, "unable to fetch cloud provider credentials")
 	}
