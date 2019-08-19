@@ -18,10 +18,12 @@ package credentials
 
 import (
 	"encoding/base64"
+	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 
 	"github.com/kubermatic/kubeone/pkg/apis/kubeone"
@@ -73,42 +75,43 @@ type ProviderEnvironmentVariable struct {
 	MachineControllerName string
 }
 
+type variableSource map[string]string
+
+type variableFetcher func(variableSource, string) string
+
+func defaultVariableFetcher(_ variableSource, name string) string {
+	return os.Getenv(name)
+}
+
 // ProviderCredentials match the cloudprovider and parses its credentials from environment
-func ProviderCredentials(p kubeone.CloudProviderName) (map[string]string, error) {
+func ProviderCredentials(p kubeone.CloudProviderName, credentialsFilePath string) (map[string]string, error) {
+	fetcher := defaultVariableFetcher
+	var source variableSource
+	if credentialsFilePath != "" {
+		b, err := ioutil.ReadFile(credentialsFilePath)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to load credentials file")
+		}
+		err = yaml.Unmarshal(b, &source)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to unmarshal credentials file")
+		}
+	}
+	return fetchCredentials(p, fetcher, source)
+}
+
+// fetchCredentials implements fetching credentials for each supported provider
+func fetchCredentials(p kubeone.CloudProviderName, fetcher variableFetcher, source variableSource) (map[string]string, error) {
 	switch p {
 	case kubeone.CloudProviderNameAWS:
-		creds := make(map[string]string)
-		envCredsProvider := credentials.NewEnvCredentials()
-		envCreds, err := envCredsProvider.Get()
-		if err != nil {
-			return nil, err
-		}
-		if envCreds.AccessKeyID != "" && envCreds.SecretAccessKey != "" {
-			creds[AWSAccessKeyID] = envCreds.AccessKeyID
-			creds[AWSSecretAccessKey] = envCreds.SecretAccessKey
-			return creds, nil
-		}
-
-		// If env fails resort to config file
-		configCredsProvider := credentials.NewSharedCredentials("", "")
-		configCreds, err := configCredsProvider.Get()
-		if err != nil {
-			return nil, err
-		}
-		if configCreds.AccessKeyID != "" && configCreds.SecretAccessKey != "" {
-			creds[AWSAccessKeyID] = configCreds.AccessKeyID
-			creds[AWSSecretAccessKey] = configCreds.SecretAccessKey
-			return creds, nil
-		}
-
-		return nil, errors.New("error parsing aws credentials")
+		return parseAWSCredentials()
 	case kubeone.CloudProviderNameAzure:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
 			{Name: AzureClientID, MachineControllerName: AzureClientIDMC},
 			{Name: AzureClientSecret, MachineControllerName: AzureClientSecretMC},
 			{Name: AzureTenantID, MachineControllerName: AzureTenantIDMC},
 			{Name: AzureSubscribtionID, MachineControllerName: AzureSubscribtionIDMC},
-		}, defaultValidationFunc)
+		}, defaultValidationFunc, fetcher, source)
 	case kubeone.CloudProviderNameOpenStack:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
 			{Name: OpenStackAuthURL},
@@ -118,19 +121,19 @@ func ProviderCredentials(p kubeone.CloudProviderName) (map[string]string, error)
 			{Name: OpenStackRegionName},
 			{Name: OpenStackTenantID},
 			{Name: OpenStackTenantName},
-		}, openstackValidationFunc)
+		}, openstackValidationFunc, fetcher, source)
 	case kubeone.CloudProviderNameHetzner:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
 			{Name: HetznerTokenKey, MachineControllerName: HetznerTokenKeyMC},
-		}, defaultValidationFunc)
+		}, defaultValidationFunc, fetcher, source)
 	case kubeone.CloudProviderNameDigitalOcean:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
 			{Name: DigitalOceanTokenKey, MachineControllerName: DigitalOceanTokenKeyMC},
-		}, defaultValidationFunc)
+		}, defaultValidationFunc, fetcher, source)
 	case kubeone.CloudProviderNameGCE:
 		gsa, err := parseCredentialVariables([]ProviderEnvironmentVariable{
 			{Name: GoogleServiceAccountKey, MachineControllerName: GoogleServiceAccountKeyMC},
-		}, defaultValidationFunc)
+		}, defaultValidationFunc, fetcher, source)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -142,13 +145,13 @@ func ProviderCredentials(p kubeone.CloudProviderName) (map[string]string, error)
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
 			{Name: PacketAPIKey, MachineControllerName: PacketAPIKeyMC},
 			{Name: PacketProjectID},
-		}, defaultValidationFunc)
+		}, defaultValidationFunc, fetcher, source)
 	case kubeone.CloudProviderNameVSphere:
 		vscreds, err := parseCredentialVariables([]ProviderEnvironmentVariable{
 			{Name: VSphereAddress, MachineControllerName: VSphereAddressMC},
 			{Name: VSphereUsername, MachineControllerName: VSphereUsernameMC},
 			{Name: VSpherePassword},
-		}, defaultValidationFunc)
+		}, defaultValidationFunc, fetcher, source)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -161,11 +164,39 @@ func ProviderCredentials(p kubeone.CloudProviderName) (map[string]string, error)
 	return nil, errors.New("no provider matched")
 }
 
-func parseCredentialVariables(envVars []ProviderEnvironmentVariable, validationFunc func(map[string]string) error) (map[string]string, error) {
+func parseAWSCredentials() (map[string]string, error) {
+	creds := make(map[string]string)
+	envCredsProvider := credentials.NewEnvCredentials()
+	envCreds, err := envCredsProvider.Get()
+	if err != nil {
+		return nil, err
+	}
+	if envCreds.AccessKeyID != "" && envCreds.SecretAccessKey != "" {
+		creds[AWSAccessKeyID] = envCreds.AccessKeyID
+		creds[AWSSecretAccessKey] = envCreds.SecretAccessKey
+		return creds, nil
+	}
+
+	// If env fails resort to config file
+	configCredsProvider := credentials.NewSharedCredentials("", "")
+	configCreds, err := configCredsProvider.Get()
+	if err != nil {
+		return nil, err
+	}
+	if configCreds.AccessKeyID != "" && configCreds.SecretAccessKey != "" {
+		creds[AWSAccessKeyID] = configCreds.AccessKeyID
+		creds[AWSSecretAccessKey] = configCreds.SecretAccessKey
+		return creds, nil
+	}
+
+	return nil, errors.New("error parsing aws credentials")
+}
+
+func parseCredentialVariables(envVars []ProviderEnvironmentVariable, validationFunc func(map[string]string) error, fetcher variableFetcher, source variableSource) (map[string]string, error) {
 	// Validate credentials using given validation function
 	creds := make(map[string]string)
 	for _, env := range envVars {
-		creds[env.Name] = strings.TrimSpace(os.Getenv(env.Name))
+		creds[env.Name] = strings.TrimSpace(fetcher(source, env.Name))
 	}
 	if err := validationFunc(creds); err != nil {
 		return nil, errors.Wrap(err, "unable to validate credentials")

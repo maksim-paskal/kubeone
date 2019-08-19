@@ -49,7 +49,8 @@ func SetKubeOneClusterCredentials(cfg *kubeoneapi.KubeOneCluster) error {
 		return nil
 	}
 
-	creds, err := credentials.ProviderCredentials(cfg.CloudProvider.Name)
+	// TODO(xmudrii): Return here
+	creds, err := credentials.ProviderCredentials(cfg.CloudProvider.Name, "")
 	if err != nil {
 		return errors.Wrap(err, "unable to fetch cloud provider credentials")
 	}
