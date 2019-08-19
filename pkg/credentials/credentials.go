@@ -27,29 +27,43 @@ import (
 	"github.com/kubermatic/kubeone/pkg/apis/kubeone"
 )
 
-// The environment variable names with credential in them that machine-controller expects to see
+// The environment variable names with credential in them
 const (
+	// Variables that KubeOne (and Terraform) expect to see
 	AWSAccessKeyID          = "AWS_ACCESS_KEY_ID"
 	AWSSecretAccessKey      = "AWS_SECRET_ACCESS_KEY"
 	AzureClientID           = "ARM_CLIENT_ID"
 	AzureClientSecret       = "ARM_CLIENT_SECRET"
 	AzureTenantID           = "ARM_TENANT_ID"
 	AzureSubscribtionID     = "ARM_SUBSCRIPTION_ID"
-	DigitalOceanTokenKey    = "DO_TOKEN"
-	GoogleServiceAccountKey = "GOOGLE_SERVICE_ACCOUNT"
-	HetznerTokenKey         = "HZ_TOKEN"
+	DigitalOceanTokenKey    = "DIGITALOCEAN_TOKEN"
+	GoogleServiceAccountKey = "GOOGLE_CREDENTIALS"
+	HetznerTokenKey         = "HCLOUD_TOKEN"
 	OpenStackAuthURL        = "OS_AUTH_URL"
 	OpenStackDomainName     = "OS_DOMAIN_NAME"
 	OpenStackPassword       = "OS_PASSWORD"
 	OpenStackRegionName     = "OS_REGION_NAME"
 	OpenStackTenantID       = "OS_TENANT_ID"
 	OpenStackTenantName     = "OS_TENANT_NAME"
-	OpenStackUserName       = "OS_USER_NAME"
-	PacketAPIKey            = "PACKET_API_KEY"
+	OpenStackUserName       = "OS_USERNAME"
+	PacketAPIKey            = "PACKET_AUTH_TOKEN"
 	PacketProjectID         = "PACKET_PROJECT_ID"
-	VSphereAddress          = "VSPHERE_ADDRESS"
+	VSphereAddress          = "VSPHERE_SERVER"
 	VSpherePassword         = "VSPHERE_PASSWORD"
-	VSphereUsername         = "VSPHERE_USERNAME"
+	VSphereUsername         = "VSPHERE_USER"
+
+	// Variables that machine-controller expects
+	AzureClientIDMC           = "AZURE_CLIENT_ID"
+	AzureClientSecretMC       = "AZURE_CLIENT_SECRET"
+	AzureTenantIDMC           = "AZURE_TENANT_ID"
+	AzureSubscribtionIDMC     = "AZURE_SUBSCRIPTION_ID"
+	DigitalOceanTokenKeyMC    = "DO_TOKEN"
+	GoogleServiceAccountKeyMC = "GOOGLE_SERVICE_ACCOUNT"
+	HetznerTokenKeyMC         = "HZ_TOKEN"
+	OpenStackUserNameMC       = "OS_USER_NAME"
+	PacketAPIKeyMC            = "PACKET_API_KEY"
+	VSphereAddressMC          = "VSPHERE_ADDRESS"
+	VSphereUsernameMC         = "VSPHERE_USERNAME"
 )
 
 // ProviderEnvironmentVariable is used to match environment variable used by KubeOne to environment variable used by
@@ -70,8 +84,8 @@ func ProviderCredentials(p kubeone.CloudProviderName) (map[string]string, error)
 			return nil, err
 		}
 		if envCreds.AccessKeyID != "" && envCreds.SecretAccessKey != "" {
-			creds["AWS_ACCESS_KEY_ID"] = envCreds.AccessKeyID
-			creds["AWS_SECRET_ACCESS_KEY"] = envCreds.SecretAccessKey
+			creds[AWSAccessKeyID] = envCreds.AccessKeyID
+			creds[AWSSecretAccessKey] = envCreds.SecretAccessKey
 			return creds, nil
 		}
 
@@ -82,57 +96,57 @@ func ProviderCredentials(p kubeone.CloudProviderName) (map[string]string, error)
 			return nil, err
 		}
 		if configCreds.AccessKeyID != "" && configCreds.SecretAccessKey != "" {
-			creds["AWS_ACCESS_KEY_ID"] = configCreds.AccessKeyID
-			creds["AWS_SECRET_ACCESS_KEY"] = configCreds.SecretAccessKey
+			creds[AWSAccessKeyID] = configCreds.AccessKeyID
+			creds[AWSSecretAccessKey] = configCreds.SecretAccessKey
 			return creds, nil
 		}
 
 		return nil, errors.New("error parsing aws credentials")
 	case kubeone.CloudProviderNameAzure:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
-			{Name: AzureClientID, MachineControllerName: "AZURE_CLIENT_ID"},
-			{Name: AzureClientSecret, MachineControllerName: "AZURE_CLIENT_SECRET"},
-			{Name: AzureTenantID, MachineControllerName: "AZURE_TENANT_ID"},
-			{Name: AzureSubscribtionID, MachineControllerName: "AZURE_SUBSCRIPTION_ID"},
+			{Name: AzureClientID, MachineControllerName: AzureClientIDMC},
+			{Name: AzureClientSecret, MachineControllerName: AzureClientSecretMC},
+			{Name: AzureTenantID, MachineControllerName: AzureTenantIDMC},
+			{Name: AzureSubscribtionID, MachineControllerName: AzureSubscribtionIDMC},
 		}, defaultValidationFunc)
 	case kubeone.CloudProviderNameOpenStack:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
-			{Name: "OS_AUTH_URL"},
-			{Name: "OS_USERNAME", MachineControllerName: "OS_USER_NAME"},
-			{Name: "OS_PASSWORD"},
-			{Name: "OS_DOMAIN_NAME"},
-			{Name: "OS_REGION_NAME"},
-			{Name: "OS_TENANT_ID"},
-			{Name: "OS_TENANT_NAME"},
+			{Name: OpenStackAuthURL},
+			{Name: OpenStackUserName, MachineControllerName: OpenStackUserNameMC},
+			{Name: OpenStackPassword},
+			{Name: OpenStackDomainName},
+			{Name: OpenStackRegionName},
+			{Name: OpenStackTenantID},
+			{Name: OpenStackTenantName},
 		}, openstackValidationFunc)
 	case kubeone.CloudProviderNameHetzner:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
-			{Name: "HCLOUD_TOKEN", MachineControllerName: "HZ_TOKEN"},
+			{Name: HetznerTokenKey, MachineControllerName: HetznerTokenKeyMC},
 		}, defaultValidationFunc)
 	case kubeone.CloudProviderNameDigitalOcean:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
-			{Name: "DIGITALOCEAN_TOKEN", MachineControllerName: "DO_TOKEN"},
+			{Name: DigitalOceanTokenKey, MachineControllerName: DigitalOceanTokenKeyMC},
 		}, defaultValidationFunc)
 	case kubeone.CloudProviderNameGCE:
 		gsa, err := parseCredentialVariables([]ProviderEnvironmentVariable{
-			{Name: "GOOGLE_CREDENTIALS", MachineControllerName: "GOOGLE_SERVICE_ACCOUNT"},
+			{Name: GoogleServiceAccountKey, MachineControllerName: GoogleServiceAccountKeyMC},
 		}, defaultValidationFunc)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
 		// encode it before sending to secret to be consumed by
 		// machine-controller, as machine-controller assumes it will be double encoded
-		gsa["GOOGLE_SERVICE_ACCOUNT"] = base64.StdEncoding.EncodeToString([]byte(gsa["GOOGLE_SERVICE_ACCOUNT"]))
+		gsa[GoogleServiceAccountKeyMC] = base64.StdEncoding.EncodeToString([]byte(gsa[GoogleServiceAccountKeyMC]))
 		return gsa, nil
 	case kubeone.CloudProviderNamePacket:
 		return parseCredentialVariables([]ProviderEnvironmentVariable{
-			{Name: "PACKET_AUTH_TOKEN", MachineControllerName: PacketAPIKey},
+			{Name: PacketAPIKey, MachineControllerName: PacketAPIKeyMC},
 			{Name: PacketProjectID},
 		}, defaultValidationFunc)
 	case kubeone.CloudProviderNameVSphere:
 		vscreds, err := parseCredentialVariables([]ProviderEnvironmentVariable{
-			{Name: "VSPHERE_SERVER", MachineControllerName: VSphereAddress},
-			{Name: "VSPHERE_USER", MachineControllerName: VSphereUsername},
+			{Name: VSphereAddress, MachineControllerName: VSphereAddressMC},
+			{Name: VSphereUsername, MachineControllerName: VSphereUsernameMC},
 			{Name: VSpherePassword},
 		}, defaultValidationFunc)
 		if err != nil {
@@ -140,7 +154,7 @@ func ProviderCredentials(p kubeone.CloudProviderName) (map[string]string, error)
 		}
 
 		// force scheme, as machine-controller requires it while terraform does not
-		vscreds[VSphereAddress] = "https://" + vscreds[VSphereAddress]
+		vscreds[VSphereAddressMC] = "https://" + vscreds[VSphereAddressMC]
 		return vscreds, nil
 	}
 
