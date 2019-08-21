@@ -370,6 +370,7 @@ func autoConvert_v1alpha1_Features_To_kubeone_Features(in *Features, out *kubeon
 	out.DynamicAuditLog = (*kubeone.DynamicAuditLog)(unsafe.Pointer(in.DynamicAuditLog))
 	out.MetricsServer = (*kubeone.MetricsServer)(unsafe.Pointer(in.MetricsServer))
 	out.OpenIDConnect = (*kubeone.OpenIDConnect)(unsafe.Pointer(in.OpenIDConnect))
+	out.ExtraArgs = (*kubeone.ExtraArgs)(unsafe.Pointer(in.ExtraArgs))
 	return nil
 }
 

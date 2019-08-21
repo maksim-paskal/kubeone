@@ -192,6 +192,22 @@ func NewConfig(s *state.State, host kubeoneapi.HostConfig) ([]runtime.Object, er
 		nodeRegistration.KubeletExtraArgs["cloud-provider"] = "external"
 	}
 
+	for _, arg := range s.Cluster.Features.ExtraArgs.ControllerManager {
+		v := strings.Split(arg, "=")
+		if len(v) != 2 {
+			return nil, errors.New(arg)
+		}
+		clusterConfig.ControllerManager.ExtraArgs[v[0]] = v[1]
+	}
+
+	for _, arg := range s.Cluster.Features.ExtraArgs.Kubelet {
+		v := strings.Split(arg, "=")
+		if len(v) != 2 {
+			return nil, errors.New(arg)
+		}
+		nodeRegistration.KubeletExtraArgs[v[0]] = v[1]
+	}
+
 	args := kubeadmargs.NewFrom(clusterConfig.APIServer.ExtraArgs)
 	features.UpdateKubeadmClusterConfiguration(cluster.Features, args)
 

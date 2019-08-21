@@ -201,6 +201,13 @@ type Features struct {
 	DynamicAuditLog   *DynamicAuditLog   `json:"dynamicAuditLog"`
 	MetricsServer     *MetricsServer     `json:"metricsServer"`
 	OpenIDConnect     *OpenIDConnect     `json:"openidConnect"`
+	ExtraArgs         *ExtraArgs         `json:"extraArgs"`
+}
+
+// ExtraArgs feature flag
+type ExtraArgs struct {
+	ControllerManager []string `json:"controllerManager"`
+	Kubelet           []string `json:"kubelet"`
 }
 
 // PodSecurityPolicy feature flag
